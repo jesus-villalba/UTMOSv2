@@ -22,7 +22,6 @@ class UTMOSv2ModelMixin(abc.ABC):
     """
     Abstract mixin for UTMOSv2 models, providing a template for prediction.
     """
-
     @property
     @abc.abstractmethod
     def _cfg(self) -> SimpleNamespace:
@@ -159,16 +158,16 @@ class UTMOSv2ModelMixin(abc.ABC):
                     file_path=p,
                     dataset=predict_dataset,
                 )
-                for p in sorted(input_dir.glob("*.wav"))
+                for p in sorted(input_dir.glob("*.{wav,flac}"))
             ]
             if not res:
                 raise ValueError(f"No wav files found in {input_dir}")
         if val_list is not None:
-            val_list = [d.replace(".wav", "") for d in val_list]
+            val_list = [d.replace(".wav", "").replace(".flac", "") for d in val_list]
             res = [
                 d
                 for d in res
-                if d.file_path.as_posix().split("/")[-1].replace(".wav", "")
+                if d.file_path.as_posix().split("/")[-1].replace(".wav", "").replace(".flac", "")
                 in set(val_list)
             ]
         if not res:

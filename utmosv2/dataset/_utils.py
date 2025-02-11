@@ -6,7 +6,7 @@ import numpy as np
 
 
 def load_audio(cfg, file: Path) -> np.ndarray:
-    if file.suffix == ".wav":
+    if file.suffix in [".wav", ".flac"]:
         y, sr = librosa.load(file, sr=None)
         y = librosa.resample(y, orig_sr=sr, target_sr=cfg.sr)
     else:
@@ -27,7 +27,7 @@ def extend_audio(cfg, y: np.ndarray, length: int, type: str) -> np.ndarray:
 
 def select_random_start(y: np.ndarray, length: int) -> np.ndarray:
     start = np.random.randint(0, y.shape[0] - length)
-    return y[start : start + length]
+    return y[start:start + length]
 
 
 def get_dataset_map(cfg):

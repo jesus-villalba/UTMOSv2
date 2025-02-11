@@ -22,7 +22,7 @@ def _clip_audio(cfg, data: "pd.DataFrame", data_name: str = "bvcc"):
         np.save(
             cfg.preprocess.save_path
             / data_name
-            / file.as_posix().split("/")[-1].replace(".wav", ".npy"),
+            / file.as_posix().split("/")[-1].replace(".wav", ".npy").replace(".flac", ".npy",
             y,
         )
 
@@ -68,7 +68,7 @@ def _change_file_path(cfg, data: "pd.DataFrame", data_name: str = "bvcc"):
     data.loc[:, "file_path"] = data.loc[:, "file_path"].apply(
         lambda x: cfg.preprocess.save_path
         / data_name
-        / x.as_posix().split("/")[-1].replace(".wav", ".npy")
+        / x.as_posix().split("/")[-1].replace(".wav", ".npy").replace(".flac", ".npy")
     )
 
 
@@ -130,7 +130,7 @@ def _get_external_data(cfg, data: "pd.DataFrame") -> "pd.DataFrame":
             lambda x: "sarulab-" + x.split("-")[0]
         )
         ysdata["file_path"] = ysdata["utt_id"].apply(
-            lambda x: cfg.preprocess.save_path / "bvcc" / x.replace(".wav", ".npy")
+            lambda x: cfg.preprocess.save_path / "bvcc" / x.replace(".wav", ".npy").replace(".flac", ".npy")
         )
         ysdata["dataset"] = "sarulab"
         exdata.append(ysdata)
@@ -185,7 +185,7 @@ def _get_external_data(cfg, data: "pd.DataFrame") -> "pd.DataFrame":
         somosdata.columns = ["utt_id", "mos"]
         somosdata["mos"] = somosdata["mos"].astype(float)
         somosdata["sys_id"] = somosdata["utt_id"].apply(
-            lambda x: "somos-" + x.replace(".wav", "").split("_")[-1]
+            lambda x: "somos-" + x.replace(".wav", "").replace(".flac","").split("_")[-1]
         )
         somosdata["file_path"] = somosdata["utt_id"].apply(
             lambda x: Path("data2/somos/audios") / x
