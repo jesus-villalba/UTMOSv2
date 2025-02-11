@@ -17,7 +17,7 @@ else:
 def _clip_audio(cfg, data: "pd.DataFrame", data_name: str = "bvcc"):
     (cfg.preprocess.save_path / data_name).mkdir(parents=True, exist_ok=True)
     for file in tqdm(data["file_path"].values, desc="Clipping audio files"):
-        y, _ = librosa.load(file, sr=None)
+        y, _ = librosa.load(str(file), sr=None)
         y, _ = librosa.effects.trim(y, top_db=cfg.preprocess.top_db)
         np.save(
             cfg.preprocess.save_path / data_name /
@@ -33,8 +33,8 @@ def _select_audio(cfg, data: "pd.DataFrame", data_name: str = "bvcc"):
     select_file_name = f"min_seconds={cfg.preprocess.min_seconds}.txt"
     if select_file_name in os.listdir(cfg.preprocess.save_path / data_name):
         with open(
-            cfg.preprocess.save_path / data_name / select_file_name,
-            "r",
+                cfg.preprocess.save_path / data_name / select_file_name,
+                "r",
         ) as f:
             select = f.read().split("\n")
     else:
