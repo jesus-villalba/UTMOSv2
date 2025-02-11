@@ -20,9 +20,9 @@ def _clip_audio(cfg, data: "pd.DataFrame", data_name: str = "bvcc"):
         y, _ = librosa.load(file, sr=None)
         y, _ = librosa.effects.trim(y, top_db=cfg.preprocess.top_db)
         np.save(
-            cfg.preprocess.save_path
-            / data_name
-            / file.as_posix().split("/")[-1].replace(".wav", ".npy").replace(".flac", ".npy",
+            cfg.preprocess.save_path / data_name /
+            file.as_posix().split("/")[-1].replace(".wav", ".npy").replace(
+                ".flac", ".npy"),
             y,
         )
 
