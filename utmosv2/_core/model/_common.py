@@ -22,6 +22,7 @@ class UTMOSv2ModelMixin(abc.ABC):
     """
     Abstract mixin for UTMOSv2 models, providing a template for prediction.
     """
+
     @property
     @abc.abstractmethod
     def _cfg(self) -> Config:
@@ -120,10 +121,10 @@ class UTMOSv2ModelMixin(abc.ABC):
         if input_path is not None:
             return float(pred[0])
         else:
-            return [{
-                "file_path": d.file_path.as_posix(),
-                "predicted_mos": float(p)
-            } for d, p in zip(data, pred)]
+            return [
+                {"file_path": d.file_path.as_posix(), "predicted_mos": float(p)}
+                for d, p in zip(data, pred)
+            ]
 
     def _prepare_data(
         self,
@@ -146,7 +147,8 @@ class UTMOSv2ModelMixin(abc.ABC):
             if val_list:
                 warnings.warn(
                     "Both `val_list` and `val_list_path` are provided. "
-                    "The union of the two will be used.")
+                    "The union of the two will be used."
+                )
             if val_list is None:
                 val_list = []
             if isinstance(val_list_path, str):
@@ -169,7 +171,9 @@ class UTMOSv2ModelMixin(abc.ABC):
                     file_path=p,
                     dataset=predict_dataset,
                 )
-                for p in sorted(list(input_dir.glob("*.wav"))+list(input_dir.glob("*.flac")))
+                for p in sorted(
+                    list(input_dir.glob("*.wav")) + list(input_dir.glob("*.flac"))
+                )
             ]
             if not res:
                 raise ValueError(f"No wav files found in {input_dir}")
@@ -178,7 +182,10 @@ class UTMOSv2ModelMixin(abc.ABC):
             res = [
                 d
                 for d in res
-                if d.file_path.as_posix().split("/")[-1].replace(".wav", "").replace(".flac", "")
+                if d.file_path.as_posix()
+                .split("/")[-1]
+                .replace(".wav", "")
+                .replace(".flac", "")
                 in set(val_list)
             ]
         if not res:

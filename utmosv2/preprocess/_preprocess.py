@@ -34,9 +34,12 @@ def _clip_audio(cfg: Config, data: "pd.DataFrame", data_name: str = "bvcc") -> N
         y, _ = librosa.load(str(file), sr=None)
         y, _ = librosa.effects.trim(y, top_db=cfg.preprocess.top_db)
         np.save(
-            cfg.preprocess.save_path / data_name /
-            file.as_posix().split("/")[-1].replace(".wav", ".npy").replace(
-                ".flac", ".npy"),
+            cfg.preprocess.save_path
+            / data_name
+            / file.as_posix()
+            .split("/")[-1]
+            .replace(".wav", ".npy")
+            .replace(".flac", ".npy"),
             y,
         )
 
@@ -49,8 +52,8 @@ def _select_audio(
     select_file_name = f"min_seconds={cfg.preprocess.min_seconds}.txt"
     if select_file_name in os.listdir(cfg.preprocess.save_path / data_name):
         with open(
-                cfg.preprocess.save_path / data_name / select_file_name,
-                "r",
+            cfg.preprocess.save_path / data_name / select_file_name,
+            "r",
         ) as f:
             select = f.read().split("\n")
     else:
@@ -148,7 +151,9 @@ def _get_external_data(cfg: Config, data: "pd.DataFrame") -> "pd.DataFrame":
             lambda x: "sarulab-" + x.split("-")[0]
         )
         ysdata["file_path"] = ysdata["utt_id"].apply(
-            lambda x: cfg.preprocess.save_path / "bvcc" / x.replace(".wav", ".npy").replace(".flac", ".npy")
+            lambda x: cfg.preprocess.save_path
+            / "bvcc"
+            / x.replace(".wav", ".npy").replace(".flac", ".npy")
         )
         ysdata["dataset"] = "sarulab"
         exdata.append(ysdata)
@@ -203,7 +208,8 @@ def _get_external_data(cfg: Config, data: "pd.DataFrame") -> "pd.DataFrame":
         somosdata.columns = ["utt_id", "mos"]
         somosdata["mos"] = somosdata["mos"].astype(float)
         somosdata["sys_id"] = somosdata["utt_id"].apply(
-            lambda x: "somos-" + x.replace(".wav", "").replace(".flac","").split("_")[-1]
+            lambda x: "somos-"
+            + x.replace(".wav", "").replace(".flac", "").split("_")[-1]
         )
         somosdata["file_path"] = somosdata["utt_id"].apply(
             lambda x: Path("data2/somos/audios") / x
