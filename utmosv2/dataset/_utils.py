@@ -16,8 +16,7 @@ def load_audio(cfg: Config, file: Path) -> np.ndarray:
     return y
 
 
-def extend_audio(cfg: Config, y: np.ndarray, length: int,
-                 type: str) -> np.ndarray:
+def extend_audio(cfg: Config, y: np.ndarray, length: int, type: str) -> np.ndarray:
     if y.shape[0] > length:
         return y
     elif type == "tile":
@@ -30,7 +29,7 @@ def extend_audio(cfg: Config, y: np.ndarray, length: int,
 
 def select_random_start(y: np.ndarray, length: int) -> np.ndarray:
     start = np.random.randint(0, y.shape[0] - length)
-    return y[start:start + length]
+    return y[start : start + length]
 
 
 def get_dataset_map(cfg: Config) -> dict[str, int]:
