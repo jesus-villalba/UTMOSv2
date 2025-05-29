@@ -7,13 +7,15 @@ import librosa
 import numpy as np
 import torch
 
-from utmosv2.dataset._base import BaseDataset
+from utmosv2._settings._config import Config
+from utmosv2.dataset._base import _BaseDataset
 from utmosv2.dataset._utils import (
     extend_audio,
     get_dataset_map,
     load_audio,
     select_random_start,
 )
+from utmosv2.preprocess._preprocess import remove_silent_section
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
     from utmosv2.dataset._schema import DatasetSchema
 
 
-class MultiSpecDataset(BaseDataset):
+class MultiSpecDataset(_BaseDataset):
     """
     Dataset class for mel-spectrogram feature extractor. This class is responsible for
     loading audio data, generating multiple spectrograms for each sample, and
@@ -31,10 +33,10 @@ class MultiSpecDataset(BaseDataset):
         cfg (SimpleNamespace): The configuration object containing dataset and model settings.
         data (list[DatasetSchema] | pd.DataFrame): The dataset containing file paths and labels.
         phase (str): The phase of the dataset, either "train" or any other phase (e.g., "valid").
-        transform (Callable[[torch.Tensor], torch.Tensor] | None): Transformation function to apply to spectrograms.
+        transform (str, dict[Callable[[torch.Tensor], torch.Tensor]] | None): Transformation function to apply to spectrograms.
     """
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, ...]:
         """
         Get the spectrogram and target MOS for a given index.
 
@@ -47,6 +49,11 @@ class MultiSpecDataset(BaseDataset):
         row = self.data[idx] if isinstance(self.data, list) else self.data.iloc[idx]
         file = row.file_path
         y = load_audio(self.cfg, file)
+        if (
+            hasattr(self.cfg.dataset, "remove_silent_section")
+            and self.cfg.dataset.remove_silent_section
+        ):
+            y = remove_silent_section(y)
         specs = []
         length = int(self.cfg.dataset.spec_frames.frame_sec * self.cfg.sr)
         y = extend_audio(self.cfg, y, length, type=self.cfg.dataset.spec_frames.extend)
@@ -64,16 +71,17 @@ class MultiSpecDataset(BaseDataset):
                     spec = lmd * spec + (1 - lmd) * spec2
                 spec = np.stack([spec, spec, spec], axis=0)
                 # spec = np.transpose(spec, (1, 2, 0))
-                spec = torch.tensor(spec, dtype=torch.float32)
+                spec_tensor = torch.tensor(spec, dtype=torch.float32)
                 phase = "train" if self.phase == "train" else "valid"
-                spec = self.transform[phase](spec)
-                specs.append(spec)
-        spec = torch.stack(specs).float()
+                assert self.transform is not None, "Transform must be provided."
+                spec_tensor = self.transform[phase](spec_tensor)
+                specs.append(spec_tensor)
+        spec_tensor = torch.stack(specs).float()
 
         target = row.mos or 0.0
         target = torch.tensor(target, dtype=torch.float32)
 
-        return spec, target
+        return spec_tensor, target
 
 
 class MultiSpecExtDataset(MultiSpecDataset):
@@ -87,21 +95,21 @@ class MultiSpecExtDataset(MultiSpecDataset):
             The dataset containing file paths and labels.
         phase (str):
             The phase of the dataset, either "train" or any other phase (e.g., "valid").
-        transform (Callable[[torch.Tensor], torch.Tensor] | None):
+        transform (dict[str, Callable[[torch.Tensor], torch.Tensor]] | None):
             Transformation function to apply to spectrograms.
     """
 
     def __init__(
         self,
-        cfg,
+        cfg: Config,
         data: "pd.DataFrame" | list[DatasetSchema],
         phase: str,
-        transform: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        transform: dict[str, Callable[[torch.Tensor], torch.Tensor]] | None = None,
     ):
         super().__init__(cfg, data, phase, transform)
         self.dataset_map = get_dataset_map(cfg)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, ...]:
         """
         Get the spectrogram, data-domain embedding, and target MOS for a given index.
 
@@ -117,12 +125,12 @@ class MultiSpecExtDataset(MultiSpecDataset):
 
         d = np.zeros(len(self.dataset_map))
         d[self.dataset_map[row.dataset]] = 1
-        d = torch.tensor(d, dtype=torch.float32)
+        dt = torch.tensor(d, dtype=torch.float32)
 
-        return spec, d, target
+        return spec, dt, target
 
 
-def _make_spctrogram(cfg, spec_cfg, y: np.ndarray) -> np.ndarray:
+def _make_spctrogram(cfg: Config, spec_cfg: Config, y: np.ndarray) -> np.ndarray:
     if spec_cfg.mode == "melspec":
         return _make_melspec(cfg, spec_cfg, y)
     elif spec_cfg.mode == "stft":
@@ -131,7 +139,7 @@ def _make_spctrogram(cfg, spec_cfg, y: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
 
-def _make_melspec(cfg, spec_cfg, y: np.ndarray) -> np.ndarray:
+def _make_melspec(cfg: Config, spec_cfg: Config, y: np.ndarray) -> np.ndarray:
     spec = librosa.feature.melspectrogram(
         y=y,
         sr=cfg.sr,
@@ -146,7 +154,7 @@ def _make_melspec(cfg, spec_cfg, y: np.ndarray) -> np.ndarray:
     return spec
 
 
-def _make_stft(cfg, spec_cfg, y: np.ndarray) -> np.ndarray:
+def _make_stft(cfg: Config, spec_cfg: Config, y: np.ndarray) -> np.ndarray:
     spec = librosa.stft(y=y, n_fft=spec_cfg.n_fft, hop_length=spec_cfg.hop_length)
     spec = np.abs(spec)
     spec = librosa.amplitude_to_db(spec)

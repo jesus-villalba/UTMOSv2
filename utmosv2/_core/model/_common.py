@@ -3,14 +3,14 @@ from __future__ import annotations
 import abc
 import warnings
 from pathlib import Path
-from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 from torch.cuda.amp import autocast
 from tqdm import tqdm
 
+from utmosv2._settings._config import Config
 from utmosv2.dataset._schema import DatasetSchema
 from utmosv2.utils import get_dataset
 
@@ -24,7 +24,7 @@ class UTMOSv2ModelMixin(abc.ABC):
     """
     @property
     @abc.abstractmethod
-    def _cfg(self) -> SimpleNamespace:
+    def _cfg(self) -> Config:
         pass
 
     @abc.abstractmethod
@@ -32,7 +32,7 @@ class UTMOSv2ModelMixin(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def __call__(self, *args, **kwargs) -> torch.Tensor:
+    def __call__(self, *args: Any, **kwargs: Any) -> torch.Tensor:
         pass
 
     def predict(
@@ -47,6 +47,7 @@ class UTMOSv2ModelMixin(abc.ABC):
         num_workers: int = 4,
         batch_size: int = 16,
         num_repetitions: int = 1,
+        remove_silent_section: bool = True,
         verbose: bool = True,
     ) -> float | list[dict[str, str | float]]:
         """
@@ -73,6 +74,8 @@ class UTMOSv2ModelMixin(abc.ABC):
                 Batch size for the data loader. Defaults to 16.
             num_repetitions (int):
                 Number of prediction repetitions to average results. Defaults to 1.
+            remove_silent_section (bool):
+                Whether to remove silent sections from the audio before prediction. Defaults to True.
             verbose (bool):
                 Whether to display progress during prediction. Defaults to True.
 
@@ -94,7 +97,16 @@ class UTMOSv2ModelMixin(abc.ABC):
             val_list_path,
             predict_dataset,
         )
+        if remove_silent_section:
+            initial_state = (
+                hasattr(self._cfg.dataset, "remove_silent_section")
+                and self._cfg.dataset.remove_silent_section
+            )
+            self._cfg.dataset.remove_silent_section = True
         dataset = get_dataset(self._cfg, data, self._cfg.phase)
+        if remove_silent_section and not initial_state:
+            self._cfg.dataset.remove_silent_section = False
+
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=batch_size,

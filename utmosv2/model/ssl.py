@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoFeatureExtractor, AutoModel
 
+from utmosv2._settings._config import Config
 from utmosv2.dataset._utils import get_dataset_num
 
 
@@ -18,7 +19,7 @@ class _SSLEncoder(nn.Module):
             for param in self.model.parameters():
                 param.requires_grad = False
 
-    def forward(self, x):
+    def forward(self, x: tuple[torch.Tensor]) -> tuple[torch.Tensor]:
         x = self.processor(
             [t.cpu().numpy() for t in x],
             sampling_rate=self.sr,
@@ -41,7 +42,7 @@ class SSLExtModel(nn.Module):
             Optional name for the SSL encoder. Defaults to the name specified in `cfg.model.ssl.name`.
     """
 
-    def __init__(self, cfg, name: str | None = None):
+    def __init__(self, cfg: Config, name: str | None = None):
         super().__init__()
         self.cfg = cfg
         self.encoder = _SSLEncoder(
@@ -62,11 +63,11 @@ class SSLExtModel(nn.Module):
                 ]
             )
         self.num_dataset = get_dataset_num(cfg)
-        self.fc = nn.Linear(
+        self.fc: nn.Linear | nn.Identity = nn.Linear(
             in_features * 2 + self.num_dataset, cfg.model.ssl.num_classes
         )
 
-    def forward(self, x, d):
+    def forward(self, xt: tuple[torch.Tensor], d: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the SSLExtModel.
 
@@ -80,8 +81,8 @@ class SSLExtModel(nn.Module):
             torch.Tensor:
                 Output tensor after applying the SSL encoder, attention (if configured), and fully connected layers.
         """
-        x = self.encoder(x)
-        x = sum([t * w for t, w in zip(x, self.weights)])
+        xt = self.encoder(xt)
+        x: torch.Tensor = sum([t * w for t, w in zip(xt, self.weights)])
         if self.cfg.model.ssl.attn:
             y = x
             for attn in self.attn:

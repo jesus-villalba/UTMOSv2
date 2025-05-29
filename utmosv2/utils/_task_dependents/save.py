@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from utmosv2._import import _LazyImport
+from utmosv2._settings._config import Config
 from utmosv2.utils._task_dependents.initializers import _get_test_save_name
 
 if TYPE_CHECKING:
@@ -15,8 +16,11 @@ else:
 
 
 def save_test_preds(
-    cfg, data: "pd.DataFrame", test_preds: np.ndarray, test_metrics: dict[str, float]
-):
+    cfg: Config,
+    data: "pd.DataFrame",
+    test_preds: np.ndarray,
+    test_metrics: dict[str, float],
+) -> None:
     test_df = pd.DataFrame({cfg.id_name: data[cfg.id_name], "test_preds": test_preds})
     cfg.inference.save_path.mkdir(parents=True, exist_ok=True)
     save_path = (
@@ -33,7 +37,9 @@ def save_test_preds(
     print(f"Test predictions are saved to {save_path}")
 
 
-def make_submission_file(cfg, data: "pd.DataFrame", test_preds: np.ndarray):
+def make_submission_file(
+    cfg: Config, data: "pd.DataFrame", test_preds: np.ndarray
+) -> None:
     submit = pd.DataFrame({cfg.id_name: data[cfg.id_name], "prediction": test_preds})
     (
         cfg.inference.submit_save_path
@@ -52,7 +58,7 @@ def make_submission_file(cfg, data: "pd.DataFrame", test_preds: np.ndarray):
     print(f"Submission file is saved to {sub_file}")
 
 
-def save_preds(cfg, data: "pd.DataFrame", test_preds: np.ndarray):
+def save_preds(cfg: Config, data: "pd.DataFrame", test_preds: np.ndarray) -> None:
     pred = pd.DataFrame({cfg.id_name: data[cfg.id_name], "mos": test_preds})
     if cfg.out_path is None:
         print("Predictions:")

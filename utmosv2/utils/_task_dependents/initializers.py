@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 
 from utmosv2._import import _LazyImport
+from utmosv2._settings._config import Config
 from utmosv2.dataset import (
     MultiSpecDataset,
     MultiSpecExtDataset,
@@ -27,6 +28,8 @@ from utmosv2.model import (
     SSLMultiSpecExtModelV2,
 )
 from utmosv2.preprocess import add_sys_mean, preprocess, preprocess_test
+from utmosv2.utils._constants import _UTMOSV2_CHACHE
+from utmosv2.utils._download import download_pretrained_weights_from_hf
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -37,7 +40,7 @@ else:
     pd = _LazyImport("pandas")
 
 
-def get_data(cfg) -> "pd.DataFrame":
+def get_data(cfg: Config) -> "pd.DataFrame":
     train_mos_list = pd.read_csv(cfg.input_dir / "sets/train_mos_list.txt", header=None)
     val_mos_list = pd.read_csv(cfg.input_dir / "sets/val_mos_list.txt", header=None)
     test_mos_list = pd.read_csv(cfg.input_dir / "sets/test_mos_list.txt", header=None)
@@ -48,7 +51,7 @@ def get_data(cfg) -> "pd.DataFrame":
 
 
 def get_dataset(
-    cfg, data: "pd.DataFrame" | list[DatasetSchema], phase: str
+    cfg: Config, data: "pd.DataFrame" | list[DatasetSchema], phase: str
 ) -> torch.utils.data.Dataset:
     if cfg.print_config:
         print(f"Using dataset: {cfg.dataset.name}")
@@ -68,7 +71,7 @@ def get_dataset(
     return res
 
 
-def get_model(cfg, device: torch.device) -> nn.Module:
+def get_model(cfg: Config, device: torch.device) -> nn.Module:
     if cfg.print_config:
         print(f"Using model: {cfg.model.name}")
     model: nn.Module
@@ -93,7 +96,12 @@ def get_model(cfg, device: torch.device) -> nn.Module:
                 Path("models")
                 / cfg.weight
                 / f"fold{cfg.now_fold}_s{cfg.split.seed}_best_model.pth"
-            ).as_posix()
+            )
+            if not weight_path.exists():
+                weight_path_cache = _UTMOSV2_CHACHE / weight_path
+                if not weight_path_cache.exists():
+                    download_pretrained_weights_from_hf(cfg.weight, cfg.now_fold)
+                weight_path = weight_path_cache
         model.load_state_dict(torch.load(weight_path))
         print(f"Loaded weight from {weight_path}")
     return model
@@ -108,14 +116,14 @@ def get_metrics() -> dict[str, Callable[[np.ndarray, np.ndarray], float]]:
     }
 
 
-def _get_testdata(cfg, data: "pd.DataFrame") -> "pd.DataFrame":
+def _get_testdata(cfg: Config, data: "pd.DataFrame") -> "pd.DataFrame":
     with open(cfg.inference.val_list_path, "r") as f:
         val_lists = [s.replace("\n", "") + ".wav" for s in f.readlines()]
     test_data = data[data["utt_id"].isin(set(val_lists))]
     return test_data
 
 
-def get_inference_data(cfg) -> "pd.DataFrame":
+def get_inference_data(cfg: Config) -> "pd.DataFrame":
     if cfg.reproduce:
         data = get_data(cfg)
         data = preprocess_test(cfg, data)
@@ -141,7 +149,7 @@ def get_inference_data(cfg) -> "pd.DataFrame":
     return data
 
 
-def get_train_data(cfg) -> "pd.DataFrame":
+def get_train_data(cfg: Config) -> "pd.DataFrame":
     if cfg.reproduce:
         data = get_data(cfg)
         data = preprocess(cfg, data)
@@ -171,24 +179,5 @@ def get_train_data(cfg) -> "pd.DataFrame":
     return data
 
 
-def _get_test_save_name(cfg) -> str:
+def _get_test_save_name(cfg: Config) -> str:
     return f"{cfg.config_name}_[fold{cfg.inference.fold}_tta{cfg.inference.num_tta}_s{cfg.split.seed}]"
-
-
-def save_test_preds(
-    cfg, data: "pd.DataFrame", test_preds: np.ndarray, test_metrics: dict[str, float]
-):
-    test_df = pd.DataFrame({cfg.id_name: data[cfg.id_name], "test_preds": test_preds})
-    cfg.inference.save_path.mkdir(parents=True, exist_ok=True)
-    save_path = (
-        cfg.inference.save_path
-        / f"{_get_test_save_name(cfg)}_({cfg.predict_dataset})_test_preds{'_final' if cfg.final else ''}.csv"
-    )
-    test_df.to_csv(save_path, index=False)
-    save_path = (
-        cfg.inference.save_path
-        / f"{_get_test_save_name(cfg)}_({cfg.predict_dataset})_val_score{'_final' if cfg.final else ''}.json"
-    )
-    with open(save_path, "w") as f:
-        json.dump(test_metrics, f)
-    print(f"Test predictions are saved to {save_path}")

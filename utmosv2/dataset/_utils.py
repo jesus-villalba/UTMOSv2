@@ -4,17 +4,20 @@ from pathlib import Path
 import librosa
 import numpy as np
 
+from utmosv2._settings._config import Config
 
-def load_audio(cfg, file: Path) -> np.ndarray:
+
+def load_audio(cfg: Config, file: Path) -> np.ndarray:
     if file.suffix in [".wav", ".flac"]:
-        y, sr = librosa.load(str(file), sr=None)
+        y, sr = librosa.load(file, sr=None)
         y = librosa.resample(y, orig_sr=sr, target_sr=cfg.sr)
     else:
         y = np.load(file)
     return y
 
 
-def extend_audio(cfg, y: np.ndarray, length: int, type: str) -> np.ndarray:
+def extend_audio(cfg: Config, y: np.ndarray, length: int,
+                 type: str) -> np.ndarray:
     if y.shape[0] > length:
         return y
     elif type == "tile":
@@ -30,7 +33,7 @@ def select_random_start(y: np.ndarray, length: int) -> np.ndarray:
     return y[start:start + length]
 
 
-def get_dataset_map(cfg):
+def get_dataset_map(cfg: Config) -> dict[str, int]:
     if cfg.data_config:
         with open(cfg.data_config, "r") as f:
             datasets = json.load(f)
@@ -50,5 +53,5 @@ def get_dataset_map(cfg):
         }
 
 
-def get_dataset_num(cfg):
+def get_dataset_num(cfg: Config) -> int:
     return len(get_dataset_map(cfg))

@@ -3,13 +3,14 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Literal
 
 import torch
 
-from utmosv2._core._constants import _UTMOSV2_CHACHE
-from utmosv2._core._download import download_pretrained_weights_from_github
 from utmosv2._core.model import UTMOSv2Model
 from utmosv2._settings import configure_execution
+from utmosv2.utils._constants import _UTMOSV2_CHACHE
+from utmosv2.utils._download import download_pretrained_weights_from_hf
 
 
 def create_model(
@@ -18,7 +19,8 @@ def create_model(
     fold: int = 0,
     checkpoint_path: Path | str | None = None,
     seed: int = 42,
-):
+    device: torch.device | str | Literal["auto"] = "auto",
+) -> UTMOSv2Model:
     """
     Create a UTMOSv2 model with the specified configuration and optional pretrained weights.
 
@@ -63,13 +65,18 @@ def create_model(
                 / f"fold{fold}_s{seed}_best_model.pth"
             )
             if not checkpoint_path.exists():
-                download_pretrained_weights_from_github(config)
+                download_pretrained_weights_from_hf(config, fold)
         if isinstance(checkpoint_path, str):
             checkpoint_path = Path(checkpoint_path)
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
-        model.load_state_dict(torch.load(checkpoint_path))
+        device = torch.device(
+            ("cuda" if torch.cuda.is_available() else "cpu")
+            if device == "auto"
+            else device
+        )
+        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
         print(f"Loaded checkpoint from {checkpoint_path}")
 
     return model

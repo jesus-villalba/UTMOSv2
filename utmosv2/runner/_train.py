@@ -11,18 +11,18 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
 from utmosv2._import import _LazyImport
+from utmosv2._settings._config import Config
 from utmosv2.utils import calc_metrics, print_metrics
 
 if TYPE_CHECKING:
     import pandas as pd
-
     import wandb
 else:
     wandb = _LazyImport("wandb")
 
 
 def train_1epoch(
-    cfg,
+    cfg: Config,
     model: torch.nn.Module,
     train_dataloader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
@@ -106,9 +106,9 @@ def train_1epoch(
                 train_loss[cl.name] += ls.detach().float().cpu().item()
 
         pbar.set_description(
-            f'  loss: {train_loss["loss"] / (i + 1):.4f}'
+            f"  loss: {train_loss['loss'] / (i + 1):.4f}"
             + (
-                f' ({", ".join([f"{cl.name}: {train_loss[cl.name] / (i + 1):.4f}" for cl, _ in cfg.loss])})'
+                f" ({', '.join([f'{cl.name}: {train_loss[cl.name] / (i + 1):.4f}' for cl, _ in cfg.loss])})"
                 if isinstance(loss, list)
                 else ""
             )
@@ -118,7 +118,7 @@ def train_1epoch(
 
 
 def validate_1epoch(
-    cfg,
+    cfg: Config,
     model: torch.nn.Module,
     valid_dataloader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
@@ -175,9 +175,9 @@ def validate_1epoch(
             for name, metric in metrics.items():
                 valid_metrics[name] += metric(output, y_cpu.numpy())
             pbar.set_description(
-                f'  val_loss: {valid_loss["loss"] / (i + 1):.4f} '
+                f"  val_loss: {valid_loss['loss'] / (i + 1):.4f} "
                 + (
-                    f'({", ".join([f"{cl.name}: {valid_loss[cl.name] / (i + 1):.4f}" for cl, _ in cfg.loss])}) '
+                    f"({', '.join([f'{cl.name}: {valid_loss[cl.name] / (i + 1):.4f}' for cl, _ in cfg.loss])}) "
                     if isinstance(loss, list)
                     else ""
                 )
@@ -200,7 +200,7 @@ def validate_1epoch(
 
 
 def run_train(
-    cfg,
+    cfg: Config,
     model: torch.nn.Module,
     train_dataloader: torch.utils.data.DataLoader,
     valid_dataloader: torch.utils.data.DataLoader,
